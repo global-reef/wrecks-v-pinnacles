@@ -6,7 +6,7 @@ This repository contains data and analysis for the Pelagic Pinnacle Project, whi
 Overview
 --------
 
-The project explores whether pinnacles support distinct fish communities or functionally resemble other reef types. Diver-based visual surveys were conducted across multiple sites, with species recorded by estimated size class and trophic group.
+The project explores whether wrecks support distinct fish communities or functionally resemble other reef types. Diver-based visual surveys were conducted across multiple sites, with species recorded by estimated size class and trophic group.
 
 Bayesian multivariate models (zero-inflated negative binomial) are used to quantify patterns in total abundance, functional group composition, and species-specific responses across habitat types. Models include random effects for diver and site, and results are interpreted using posterior means and credible intervals.
 
