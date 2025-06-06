@@ -1,0 +1,7 @@
+{
+    "installOptions": {
+        "installFromRepository": true,
+        "libraryPath": "/Users/scarletttaylor/Library/R/arm64/4.3/library",
+        "installDependencies": true
+    }
+}

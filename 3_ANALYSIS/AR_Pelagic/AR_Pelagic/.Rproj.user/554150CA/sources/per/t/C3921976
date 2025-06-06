@@ -1,0 +1,27 @@
+{
+    "id": "C3921976",
+    "path": "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/3_ANALYSIS/AR_Pelagic/AR_Pelagic/3_Spp_BayesMultiVar.R",
+    "project_path": "3_Spp_BayesMultiVar.R",
+    "type": "r_source",
+    "hash": "256806648",
+    "contents": "",
+    "dirty": false,
+    "created": 1744966945702.0,
+    "source_on_save": false,
+    "relative_order": 9,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "81,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1748582422,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1748582422445,
+    "read_only": false,
+    "read_only_alternatives": []
+}

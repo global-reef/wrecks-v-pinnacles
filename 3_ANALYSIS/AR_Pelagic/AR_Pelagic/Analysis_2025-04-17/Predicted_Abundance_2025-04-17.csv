@@ -1,0 +1,13 @@
+"Functional_Group","Classification","Intercept","Effect","Predicted_Log","Predicted"
+"Herbivore","Shipwreck",4.7,0,4.7,109.947172452124
+"Herbivore","Fringing",4.7,0.52,5.22,184.934184070684
+"Herbivore","Pinnacle",4.7,0.84,5.54,254.677999458555
+"Invertivore","Shipwreck",4.23,0,4.23,68.7172321738465
+"Invertivore","Fringing",4.23,0.54,4.77,117.919241960671
+"Invertivore","Pinnacle",4.23,1,5.23,186.792803520168
+"Mesopredator","Shipwreck",4.99,0,4.99,146.936423495695
+"Mesopredator","Fringing",4.99,0.06,5.05,156.022464486395
+"Mesopredator","Pinnacle",4.99,0.84,5.83,340.358679071749
+"HTLP","Shipwreck",3.54,0,3.54,34.4669191908574
+"HTLP","Fringing",3.54,-0.32,3.22,25.0281201813378
+"HTLP","Pinnacle",3.54,0.62,4.16,64.0715225999366
