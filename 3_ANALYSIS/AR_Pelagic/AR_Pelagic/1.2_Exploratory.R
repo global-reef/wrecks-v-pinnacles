@@ -97,3 +97,53 @@ ggplot(fg_by_site, aes(x = Site, y = Proportion, fill = Functional_Group)) +
 
 
 
+library(dplyr)
+
+# Summarise survey counts
+survey_counts <- fish_long %>%
+  distinct(survey_id, Classification) %>%
+  count(Classification, name = "n_surveys")
+
+total_surveys <- sum(survey_counts$n_surveys)
+total_minutes <- total_surveys * 8
+total_hours <- total_minutes / 60
+total_area_m2 <- total_surveys * 1200
+total_area_ha <- total_area_m2 / 10000
+
+# Total fish count
+total_fish <- fish_long %>%
+  summarise(total = sum(Count, na.rm = TRUE)) %>%
+  pull(total)
+
+# Fish density per survey
+fish_density <- fish_long %>%
+  group_by(survey_id, Classification) %>%
+  summarise(Total_Fish = sum(Count, na.rm = TRUE), .groups = "drop") %>%
+  mutate(Density = Total_Fish)
+
+# Mean ± SD density per habitat
+density_summary <- fish_density %>%
+  group_by(Classification) %>%
+  summarise(
+    mean_density = mean(Density),
+    sd_density = sd(Density),
+    .groups = "drop"
+  )
+
+# Print outputs
+print(survey_counts)
+cat("Total surveys:", total_surveys, "\n")
+cat("Total survey hours:", round(total_hours, 1), "\n")
+cat("Total area surveyed (ha):", round(total_area_ha, 1), "\n")
+cat("Total fish recorded:", (total_fish), "\n")
+print(density_summary)
+
+# sites per classification 
+fish_wide %>%
+  distinct(Site, Classification) %>%
+  count(Classification)
+fish_wide %>%
+  distinct(Site, Classification) %>%
+  arrange(Classification, Site)
+
+

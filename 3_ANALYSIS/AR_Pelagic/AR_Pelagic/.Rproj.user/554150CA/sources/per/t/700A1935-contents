@@ -5,12 +5,12 @@
 ######### 0. Set Analysis Date & Create Output Folder #######
 # --------------------------
 # Enter the date for this analysis
-analysis_date <- "2025_05_15"  # Update these 3 for each analysis run
+analysis_date <- "2025_06_19"  # Update these 3 for each analysis run
 # file path (adjust date for correct date)
-file_path <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.05.15_ArtificialReefs_MASTERdata.csv"
-file_path_timed <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.05.15_TimedFishSurveys_Shallow_MASTER.csv"
+file_path <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.06.19_ArtificialReefs_MASTER.csv"
+file_path_timed <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.06.19_TimedFishSurveys_Shallow_MASTER.csv"
 # --------------------------
-raw_fish <- read.csv(file_path, stringsAsFactors=TRUE, strip.white=TRUE)
+raw_fish <- read.csv(file_path, stringsAsFactors=TRUE, strip.white=TRUE) 
 
 
 # Create a folder named with the date inside the working directory
@@ -43,3 +43,13 @@ source("~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/3_ANALYSIS/AR_
 # run species-specific bayesian multivariate regression 
 source("~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/3_ANALYSIS/AR_Pelagic/AR_Pelagic/3_Spp_BayesMultiVar.R")
 source("~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/3_ANALYSIS/AR_Pelagic/AR_Pelagic/3.1_Spp_BMV_SubsetSpp.R") 
+
+
+summary(fit_re)
+summary(fit_zone)
+# summary(results_all_species$fit_mv)
+summary(spp_no_re$fit_mv)
+
+print(posterior_probs_re)
+print(posterior_probs_zone)
+print(posterior_contrasts_summary, n=Inf)

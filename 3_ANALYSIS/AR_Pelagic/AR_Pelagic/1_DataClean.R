@@ -58,7 +58,7 @@ clean_data <- function(file_path) {
                 "Triggerfish", "Porcupine.Puffer", "Ray", "Brown_Stripe_Snapper", 
                 "Russels_Snapper", "lrg_Snapper", "Eel", "Trevally", "Emperorfish",
                 "sml_Grouper", "lrg_Grouper", "Barracuda"),
-    Functional_Group = c("Herbivore", "Herbivore", "Herbivore", "Invertivore", "Invertivore",
+    Functional_Group = c("Grazer", "Grazer", "Grazer", "Invertivore", "Invertivore",
                          "Invertivore", "Invertivore", "Invertivore", "Invertivore", "Invertivore",
                          "Invertivore", "Invertivore", "Invertivore", "Mesopredator", "Mesopredator",
                          "Mesopredator", "HTLP", "Mesopredator", "HTLP", "Mesopredator",
@@ -69,7 +69,7 @@ clean_data <- function(file_path) {
   fish_long <- fish_long %>%
     left_join(functional_groups, by = "Species") %>%
     mutate(Functional_Group = factor(Functional_Group,
-                                     levels = c("Herbivore", "Invertivore", "Mesopredator", "HTLP"),
+                                     levels = c("Grazer", "Invertivore", "Mesopredator", "HTLP"),
                                      ordered = TRUE))
   # round to the nearest ineger 
   fish_long <- fish_long %>% 
@@ -84,6 +84,8 @@ clean_data <- function(file_path) {
 
 # Use the function to clean the data 
 fish_long <- clean_data(file_path)
+fish_long$Duration <- as.integer(fish_long$Duration)
+
 
 # remove outliers (barracudas, rays, porcupine/puffers, and eels (zero-inflated and/or extreme counts. see exploratory analysis code 1.2))
 fish_long <- fish_long %>%

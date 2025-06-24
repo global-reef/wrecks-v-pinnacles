@@ -6,9 +6,18 @@ raw_fish <- raw_fish %>%
     Sweetlips = as.numeric(Sweetlips)
   )
 
-raw_fish <- raw_fish %>%
-  mutate(sml_snapper = rowSums(select(., Brown_Stripe_Snapper, Russels_Snapper), na.rm = TRUE)) %>%
-  select(-Brown_Stripe_Snapper, -Russels_Snapper)
+
+
+
+# remove outliers (barracudas, rays, porcupine/puffers, and eels (zero-inflated and/or extreme counts. see exploratory analysis code 1.2))
+fish_long <- fish_long %>%
+  filter(!Species %in% c("Barracuda", "Eel", "Porcupine.Puffer", "Ray"))
+# sorry girlie 
+fish_long <- fish_long %>% 
+  filter(Researcher != "Keisha")
+# Filter out pre-2023-09-01 surveys for Aow Mao Wreck and No Name Wreck (pre-deployment)
+fish_long <- fish_long %>%
+  filter(!(Site %in% c("Aow Mao Wreck", "No Name Wreck") & Date < as.Date("2023-09-01")))
 
 
 
@@ -53,4 +62,49 @@ clean_raw_fish <- function(df) {
   return(df)
 }
 clean_fish <- clean_raw_fish(raw_fish)
+clean_fish_timed <- clean_raw_fish(raw_fish_timed)
 raw_all <- bind_rows(raw_fish, raw_fish_timed)
+
+
+
+# Summarise survey counts
+survey_counts <- raw_all %>%
+  count(Classification, name = "n_surveys")
+
+# Totals
+total_surveys <- sum(survey_counts$n_surveys)
+total_minutes <- total_surveys * 8
+total_hours <- total_minutes / 60
+total_area_m2 <- total_surveys * 1200
+total_area_ha <- total_area_m2 / 10000
+
+# Total fish count
+total_fish <- raw_all %>%
+  mutate(total_count = Grazer + Invertivore + Mesopredator + HTLP) %>%
+  summarise(total_fish = sum(total_count))
+
+# Mean ± SD density per habitat
+density_summary <- raw_all %>%
+  mutate(total_count = Grazer + Invertivore + Mesopredator + HTLP) %>%
+  group_by(Classification) %>%
+  summarise(
+    mean_density = mean(total_count),
+    sd_density = sd(total_count),
+    .groups = "drop"
+  )
+
+# Area check (optional if needed independently)
+total_area_ha <- nrow(raw_all) * 0.12
+
+# Print outputs
+print(survey_counts)
+cat("Total surveys:", total_surveys, "\n")
+cat("Total survey hours:", round(total_hours, 1), "\n")
+cat("Total area surveyed (ha):", round(total_area_ha, 1), "\n")
+cat("Total fish recorded:", pull(total_fish), "\n")
+
+print(density_summary)
+
+
+
+

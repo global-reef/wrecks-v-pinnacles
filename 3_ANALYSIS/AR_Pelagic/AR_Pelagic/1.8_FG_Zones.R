@@ -22,7 +22,7 @@ survey_level2 <- fish_long %>%
   summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
   spread(key = Functional_Group, value = Count, fill = 0) %>%
   mutate(
-    Herbivore    = ifelse(is.na(Herbivore), 0, Herbivore),
+    Grazer    = ifelse(is.na(Grazer), 0, Grazer),
     Invertivore  = ifelse(is.na(Invertivore), 0, Invertivore),
     Mesopredator = ifelse(is.na(Mesopredator), 0, Mesopredator),
     HTLP         = ifelse(is.na(HTLP), 0, HTLP),
@@ -34,7 +34,7 @@ survey_level2 <- fish_long %>%
 
 # try with zones instead of pinnacle/fringing 
 fit_zone <- brm(
-  formula = mvbind(Herbivore, Invertivore, Mesopredator, HTLP) ~ Zone + (1 | p | Site),
+  formula = mvbind(Grazer, Invertivore, Mesopredator, HTLP) ~ Zone + (1 | p | Site),
   data = survey_level2,
   family = negbinomial(),
   chains = 4,
@@ -46,6 +46,9 @@ fit_zone <- brm(
 )
 summary(fit_zone)
 loo_compare(loo(fit_re), loo(fit_zone))
+
+
+
 
 #### posterior draws 
 # generate new data 
@@ -70,7 +73,7 @@ epreds <- posterior_epred(fit_zone, newdata = newdata, re_formula = NA)
 dimnames(epreds) <- list(
   draw = 1:dim(epreds)[1],
   Zone = c("wreck", "nearshore", "pelagic"),
-  Functional_Group = c("Herbivore", "Invertivore", "Mesopredator", "HTLP")
+  Functional_Group = c("Grazer", "Invertivore", "Mesopredator", "HTLP")
 )
 
 # Convert to tidy tibble
@@ -136,7 +139,7 @@ zone_effects <- fit_zone %>%
   gather_draws(`.*Zone.*`, regex = TRUE) %>%
   mutate(
     Functional_Group = case_when(
-      str_detect(.variable, "Herbivore") ~ "Herbivore",
+      str_detect(.variable, "Grazer") ~ "Grazer",
       str_detect(.variable, "Invertivore") ~ "Invertivore",
       str_detect(.variable, "Mesopredator") ~ "Mesopredator",
       str_detect(.variable, "HTLP") ~ "HTLP"
@@ -176,7 +179,7 @@ pred_df <- conditional_effects(fit_zone, effects = "Zone", re_formula = NA)
 
 # Extract the predicted data and bind functional group identity
 pred_abund <- bind_rows(
-  mutate(pred_df[[1]], Functional_Group = "Herbivore"),
+  mutate(pred_df[[1]], Functional_Group = "Grazer"),
   mutate(pred_df[[2]], Functional_Group = "Invertivore"),
   mutate(pred_df[[3]], Functional_Group = "Mesopredator"),
   mutate(pred_df[[4]], Functional_Group = "HTLP")
@@ -198,7 +201,7 @@ pred_abund_prop <- pred_abund %>%
 # Plot: Proportional composition
 library(ggplot2)
 
- ggplot(pred_abund_prop, aes(x = Zone, y = Proportion, fill = Functional_Group)) +
+fg_zone_plot <- ggplot(pred_abund_prop, aes(x = Zone, y = Proportion, fill = Functional_Group)) +
   geom_bar(stat = "identity", position = "stack", color = "white") +
   theme_clean +
   labs(
@@ -217,7 +220,7 @@ library(tidyr)
  # Extract and reshape posterior draws for zone-level effects
  zone_diffs <- fit_zone %>%
    spread_draws(
-     b_Herbivore_Zonenearshore, b_Herbivore_Zonepelagic,
+     b_Grazer_Zonenearshore, b_Grazer_Zonepelagic,
      b_Invertivore_Zonenearshore, b_Invertivore_Zonepelagic,
      b_Mesopredator_Zonenearshore, b_Mesopredator_Zonepelagic,
      b_HTLP_Zonenearshore, b_HTLP_Zonepelagic
@@ -229,7 +232,7 @@ library(tidyr)
    ) %>%
    mutate(
      Functional_Group = case_when(
-       str_detect(parameter, "Herbivore") ~ "Herbivore",
+       str_detect(parameter, "Grazer") ~ "Grazer",
        str_detect(parameter, "Invertivore") ~ "Invertivore",
        str_detect(parameter, "Mesopredator") ~ "Mesopredator",
        str_detect(parameter, "HTLP") ~ "HTLP"
@@ -241,7 +244,7 @@ library(tidyr)
    ) %>%
    mutate(Functional_Group = factor(
      Functional_Group,
-     levels = c("Herbivore", "Invertivore","Mesopredator","HTLP")
+     levels = c("Grazer", "Invertivore","Mesopredator","HTLP")
      )) %>%
        mutate(Zone = factor(
          Zone,
@@ -274,9 +277,9 @@ library(tidyr)
  
 
 save_zone_proportion_outputs <- function(prop_draws_plot,  zone_diff_plot, fg_zone_plot, output_dir, analysis_date) {
-  # Save posterior distribution plot
+  # Save posterior distribution plot -  the ugly halfeye 
   ggsave(
-    filename = file.path(output_dir, paste0("Posterior_FunctionalGroup_Proportions_", analysis_date, ".png")),
+    filename = file.path(output_dir, paste0("Posterior_FunctionalGroup_Proportions_halfeye", analysis_date, ".png")),
     plot = prop_draws_plot,
     width = 8,
     height = 6
@@ -284,14 +287,14 @@ save_zone_proportion_outputs <- function(prop_draws_plot,  zone_diff_plot, fg_zo
   
   # Save proportional composition bar plot
   ggsave(
-    filename = file.path(output_dir, paste0("Zonewise_FunctionalGroup_Composition_", analysis_date, ".png")),
+    filename = file.path(output_dir, paste0("FIG4_Zonewise_FunctionalGroup_Composition_", analysis_date, ".png")),
     plot = fg_zone_plot,
     width = 8,
     height = 6
   )
   # Save posterior differences
   ggsave(
-    filename = file.path(output_dir, paste0("Zonewise_Posteror_Differences_", analysis_date, ".png")),
+    filename = file.path(output_dir, paste0("FIG5_Zonewise_Posteror_Differences_", analysis_date, ".png")),
     plot =  zone_diff_plot,
     width = 8,
     height = 6
@@ -320,7 +323,7 @@ compute_posterior_probabilities <- function(fit_model, baseline_zone = "wreck") 
   draws <- as_draws_df(fit_model)
   
   # Define all functional groups
-  groups <- c("Herbivore", "Invertivore", "Mesopredator", "HTLP")
+  groups <- c("Grazer", "Invertivore", "Mesopredator", "HTLP")
   
   # Define comparisons
   comparisons <- list(
@@ -359,8 +362,8 @@ compute_posterior_probabilities <- function(fit_model, baseline_zone = "wreck") 
 }
 
 # Example usage
-posterior_probs <- compute_posterior_probabilities(fit_zone)
-print(posterior_probs)
+posterior_probs_zone <- compute_posterior_probabilities(fit_zone)
+print(posterior_probs_zone)
 
 
 
