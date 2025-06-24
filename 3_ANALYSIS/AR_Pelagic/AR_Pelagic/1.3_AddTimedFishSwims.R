@@ -97,7 +97,7 @@ clean_timed_fish_data <- function(file_path) {
                 "Batfish", "Thicklip", "Red_Breast", "Slingjaw", "Sweetlips", "Squirrel.Soldier",
                 "Triggerfish", "Porcupine.Puffer", "Ray", "sml_snapper", "lrg_Snapper", "Eel", "Trevally", "Emperorfish",
                 "sml_Grouper", "lrg_Grouper", "Barracuda"),
-    Functional_Group = c("Herbivore", "Herbivore", "Herbivore", "Invertivore", "Invertivore",
+    Functional_Group = c("Grazer", "Grazer", "Grazer", "Invertivore", "Invertivore",
                          "Invertivore", "Invertivore", "Invertivore", "Invertivore", "Invertivore",
                          "Invertivore", "Invertivore", "Invertivore", "Mesopredator",
                          "Mesopredator", "HTLP", "Mesopredator", "HTLP", "Mesopredator",
@@ -107,7 +107,7 @@ clean_timed_fish_data <- function(file_path) {
   fish_long_timed <- fish_long_timed %>%
     left_join(functional_groups, by = "Species") %>%
     mutate(Functional_Group = factor(Functional_Group,
-                                     levels = c("Herbivore", "Invertivore", "Mesopredator", "HTLP"),
+                                     levels = c("Grazer", "Invertivore", "Mesopredator", "HTLP"),
                                      ordered = TRUE))
   fish_long_timed <- fish_long_timed %>%
     # Exclude unwanted species 
@@ -115,7 +115,8 @@ clean_timed_fish_data <- function(file_path) {
     filter(!Count %in% NA) %>%
     mutate(Site = fct_recode(Site,
                              # "Green Rock" = "Green Wall",
-                             "Twins" = "Twins wall"))
+                             "Twins" = "Twins wall",
+                             "Red Rock" = "Red Rock Wall"))
   # Add Site types and classifications 
   site_info <- tibble(
     Site = factor(c("Green Rock", "Red Rock", "Twins", "White Rock")),
@@ -142,7 +143,8 @@ fish_long <- bind_rows(fish_long, fish_long_timed)
 unique(fish_long$Site)
 fish_long <- fish_long %>%
           mutate(Site = fct_recode(Site,
-                         "No Name Pinnacle" = "No Name"))
+                         "No Name Pinnacle" = "No Name",
+                         "Shark Island" = "Shark island"))
 
 
 ## exploring dive site composition 

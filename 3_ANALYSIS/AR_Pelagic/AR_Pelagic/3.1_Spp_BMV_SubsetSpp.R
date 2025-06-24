@@ -7,7 +7,7 @@
 
 
 run_species_subset_analysis <- function(fish_wide,  
-                                        species_subset = c("Parrotfish", "Rabbitfish", "Butterflyfish"),
+                                        species_subset = c("Parrotfish", "Rabbitfish"),
                                         iter = 2000, warmup = 400,  
                                         control_list = list(adapt_delta = 0.90, max_treedepth = 15)) {
   library(dplyr)
@@ -85,19 +85,19 @@ run_species_subset_analysis <- function(fish_wide,
         ggplot(aes(x = Classification, y = mean_pred, fill = Classification)) +
         geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
         scale_fill_brewer(palette = "BuGn") +
+        theme_clean +
         labs(title = sp,
              x = "Classification",
              y = "Predicted Abundance") +
-        theme_clean +
         theme(legend.position = "none")
     })
     
     # Combine into one panel
-    combined_plot <- gridExtra::grid.arrange(grobs = plots, ncol = 3)
+    combined_plot <- gridExtra::grid.arrange(grobs = plots, ncol = 2)
     
     # Save the panel plot
     ggsave(
-      filename = file.path(output_dir, "Predicted_Abundance_Three_Species_Panel.png"),
+      filename = file.path(output_dir, "Predicted_Abundance_Tqo_Species_Panel.png"),
       plot = combined_plot,
       width = 12,
       height = 4
@@ -125,8 +125,9 @@ run_species_subset_analysis <- function(fish_wide,
 # Example usage (ensure fish_wide is available from your cleaned data)
 results_species <- run_species_subset_analysis(
   fish_wide, 
-  species_subset = c("Parrotfish", "Rabbitfish", "Butterflyfish")
+  species_subset = c("Parrotfish", "Rabbitfish")
   )
+
 
 
 summary(results_species$fit_brms)

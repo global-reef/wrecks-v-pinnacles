@@ -27,7 +27,7 @@ ggplot(fish_wrecks, aes(x = Date, y = Total, color = Site)) +
     color = "Shipwreck Site"
   )
 
-~~~~~~~~~~~~`
+
 
 library(dplyr)
 library(ggplot2)

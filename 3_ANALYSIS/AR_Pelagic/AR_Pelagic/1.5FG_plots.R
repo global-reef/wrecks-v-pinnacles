@@ -24,9 +24,9 @@ theme_clean <- theme_minimal(base_family = "Times New Roman") +
 coefs <- fixef(fit_re)
 pred_df <- tibble::tribble(
   ~Functional_Group,  ~Classification, ~Intercept, ~Effect,
-  "Herbivore",        "Shipwreck",     coefs["Herbivore_Intercept", "Estimate"], 0,
-  "Herbivore",        "Fringing",      coefs["Herbivore_Intercept", "Estimate"], coefs["Herbivore_ClassificationFringing", "Estimate"],
-  "Herbivore",        "Pinnacle",      coefs["Herbivore_Intercept", "Estimate"], coefs["Herbivore_ClassificationPinnacle", "Estimate"],
+  "Grazer",        "Shipwreck",     coefs["Grazer_Intercept", "Estimate"], 0,
+  "Grazer",        "Fringing",      coefs["Grazer_Intercept", "Estimate"], coefs["Grazer_ClassificationFringing", "Estimate"],
+  "Grazer",        "Pinnacle",      coefs["Grazer_Intercept", "Estimate"], coefs["Grazer_ClassificationPinnacle", "Estimate"],
   "Invertivore",      "Shipwreck",     coefs["Invertivore_Intercept", "Estimate"], 0,
   "Invertivore",      "Fringing",      coefs["Invertivore_Intercept", "Estimate"], coefs["Invertivore_ClassificationFringing", "Estimate"],
   "Invertivore",      "Pinnacle",      coefs["Invertivore_Intercept", "Estimate"], coefs["Invertivore_ClassificationPinnacle", "Estimate"],
@@ -54,7 +54,7 @@ abundance_plot <- ggplot(pred_df, aes(x = Classification, y = Predicted, fill = 
   theme_clean +
   scale_fill_brewer(palette = "BuGn")
 
-print(abundance_plot)
+print(abundance_plot) # fig 2 
 
 ## proportions
 pred_df_prop <- pred_df %>%
@@ -112,8 +112,8 @@ library(ggplot2)
 
 # Generate posterior draws
 draws <- fit_re %>%
-  spread_draws(b_Herbivore_ClassificationFringing,
-               b_Herbivore_ClassificationPinnacle,
+  spread_draws(b_Grazer_ClassificationFringing,
+               b_Grazer_ClassificationPinnacle,
                b_Invertivore_ClassificationFringing,
                b_Invertivore_ClassificationPinnacle,
                b_Mesopredator_ClassificationFringing,
@@ -128,7 +128,7 @@ draws_long <- draws %>%
                values_to = "Difference") %>%
   separate(Parameter, into = c("Junk", "Group", "Contrast"), sep = "_", extra = "merge") %>%
   mutate(Comparison = gsub("Classification", "", Contrast),
-         Group = factor(Group, levels = c("Herbivore", "Invertivore", "Mesopredator", "HTLP")),
+         Group = factor(Group, levels = c("Grazer", "Invertivore", "Mesopredator", "HTLP")),
          Comparison = factor(Comparison, levels = c("Fringing", "Pinnacle")))
 
 
@@ -146,7 +146,7 @@ posterior_differences <-
   theme_minimal(base_size = 12) +
   theme_clean 
 
-  
+print(posterior_differences)  # fig 3 
 
 
 
@@ -155,13 +155,13 @@ save_model_outputs <- function(pred_df, abundance_plot, forest_plot, posterior_d
   write.csv(pred_df, file = file.path(output_dir, paste0("Predicted_Abundance_", analysis_date, ".csv")),
             row.names = FALSE)
   # Save abundance bar plot
-  ggsave(filename = file.path(output_dir, paste0("Predicted_Abundance_Bars_", analysis_date, ".png")),
+  ggsave(filename = file.path(output_dir, paste0("FIG2_Predicted_Abundance_Bars_", analysis_date, ".png")),
          plot = abundance_plot, width = 8, height = 6)
   # Save forest plot
   ggsave(filename = file.path(output_dir, paste0("Classification_ForestPlot_", analysis_date, ".png")),
          plot = forest_plot, width = 8, height = 6)
   # posterior differences
-  ggsave(filename = file.path(output_dir, paste0("Posterior_Differences_", analysis_date, ".png")),
+  ggsave(filename = file.path(output_dir, paste0("FIG3_Posterior_Differences_", analysis_date, ".png")),
          plot = posterior_differences, width = 8, height = 6)
   # Save proportional plot
   ggsave(filename = file.path(output_dir, paste0("Proportional_Abundance_", analysis_date, ".png")),
@@ -184,7 +184,7 @@ library(dplyr)
 
 compute_posterior_probabilities_re <- function(fit_model, baseline_zone = "Shipwreck") {
   draws <- as_draws_df(fit_model)
-  groups <- c("Herbivore", "Invertivore", "Mesopredator", "HTLP")
+  groups <- c("Grazer", "Invertivore", "Mesopredator", "HTLP")
   
   comparisons <- list(
     c("Fringing", "Shipwreck"),

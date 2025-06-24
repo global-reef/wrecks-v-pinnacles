@@ -4,7 +4,7 @@ library(tidyr)
 library(brms)
 library(lubridate)
 library(ggplot2)
-
+ 
 
 
 # run the model 
@@ -23,7 +23,7 @@ run_functional_group_mv_regression <- function(fish_long,
   # Ensure all four functional groups are present; if missing, set to 0
   survey_level <- survey_level %>%
     mutate(
-      Herbivore    = ifelse(is.na(Herbivore), 0, Herbivore),
+      Herbivore    = ifelse(is.na(Grazer), 0, Grazer),
       Invertivore  = ifelse(is.na(Invertivore), 0, Invertivore),
       Mesopredator = ifelse(is.na(Mesopredator), 0, Mesopredator),
       HTLP         = ifelse(is.na(HTLP), 0, HTLP)
@@ -35,10 +35,10 @@ run_functional_group_mv_regression <- function(fish_long,
   
   # (Optional) Create total_fish if needed for other purposes:
   survey_level <- survey_level %>%
-    mutate(total_fish = Herbivore + Invertivore + Mesopredator + HTLP)
+    mutate(total_fish = Grazer + Invertivore + Mesopredator + HTLP)
   
   # Create the multivariate response formula (without a trials() term)
-  response_formula <- as.formula("mvbind(Herbivore, Invertivore, Mesopredator, HTLP) ~ Classification")
+  response_formula <- as.formula("mvbind(Grazer, Invertivore, Mesopredator, HTLP) ~ Classification")
   print(response_formula)
   
   # Select the family function based on the 'dist' argument
@@ -74,12 +74,12 @@ results_fg_mv <- run_functional_group_mv_regression(fish_long, dist = "negbinomi
 # Now you can inspect the model:
 summary(results_fg_mv$fit_fg_mv)
 # evidence of overdisperson here - should try random effect for site, and also try for zero-inflated neg binom model 
-
-#####  try adding a random intercept for site 
 survey_level <- results_fg_mv$survey_level
+#####  try adding a random intercept for site 
+
 # Fit a multivariate regression with a random intercept for Site
 fit_re <- brm(
-  formula = mvbind(Herbivore, Invertivore, Mesopredator, HTLP) ~ Classification + (1 | p | Site),
+  formula = mvbind(Grazer, Invertivore, Mesopredator, HTLP) ~ Classification + (1 | p | Site),
   data = survey_level,
   family = negbinomial(),
   chains = 4,
@@ -91,6 +91,7 @@ fit_re <- brm(
 )
 
 print(summary(fit_re))
+
 
 
 ### MODEL SELECTION 
@@ -108,17 +109,23 @@ loo_compare(loo(fit_re),loo(results_fg_mv$fit_fg_mv))
 summary(fit_re)
 
 
-# try with zones instead of pinnacle/fringing 
-fit_zone <- brm(
-  formula = mvbind(Herbivore, Invertivore, Mesopredator, HTLP) ~ Zone + (1 | p | Site),
-  data = survey_level,
-  family = negbinomial(),
-  chains = 4,
-  cores = 4,
-  iter = 2000,
-  warmup = 500,
-  control = list(adapt_delta = 0.95, max_treedepth = 15),
-  backend="cmdstanr"
-)
-summary(fit_zone)
-loo_compare(loo(fit_re), loo(fit_zone))
+
+# Extract predictions excluding random effects
+ce_re <- conditional_effects(fit_re, effects = "Classification", re_formula = NA)
+
+# Format for table
+fg_summary <- bind_rows(lapply(seq_along(ce_re), function(i) {
+  ce_re[[i]] %>%
+    select(Classification, estimate__, lower__, upper__) %>%
+    mutate(Functional_Group = names(ce_re)[i])
+})) %>%
+  mutate(
+    estimate_fmt = sprintf("%.1f (%.0f–%.0f)", estimate__, lower__, upper__)
+  ) %>%
+  select(Functional_Group, Classification, estimate_fmt) %>%
+  pivot_wider(names_from = Classification, values_from = estimate_fmt)
+
+# View
+fg_summary
+
+

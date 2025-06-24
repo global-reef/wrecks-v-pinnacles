@@ -52,7 +52,7 @@ run_diversity_models <- function(fish_long, survey_level) {
   ))
 }
 results_diversity <- run_diversity_models(fish_long, survey_level)
-
+summary(results_diversity$fit_species_diversity)
 library(tidybayes)
 
 survey_level %>%
