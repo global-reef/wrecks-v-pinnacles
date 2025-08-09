@@ -1,12 +1,13 @@
-# Pelagic Pinnacle Project
+# Shipwrecks x Pelagic Pinnacle Fish Assemblage comparison
 ========================
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.xxxxxxx.svg)](https://doi.org/10.5281/zenodo.xxxxxxx)
 
-This repository contains data and analysis for the Pelagic Pinnacle Project, which investigates fish assemblages on pelagic pinnacles in the Gulf of Thailand, compared to fringing reefs and artificial shipwrecks.
+This repository contains data and analysis for the Pelagic Pinnacle Project, which investigates fish assemblages on shipwrecks in the Gulf of Thailand, compared to fringing reefs and pelagic pinnacles.
 
 Overview
 --------
 
-The project explores whether wrecks support distinct fish communities or functionally resemble other reef types. Diver-based visual surveys were conducted across multiple sites, with species recorded by estimated size class and trophic group.
+The project explores whether wrecks support distinct fish communities or functionally resemble other reef types. 350 diver-based visual surveys were conducted across multiple sites, with species recorded by taxa and trophic group.
 
 Bayesian multivariate models (zero-inflated negative binomial) are used to quantify patterns in total abundance, functional group composition, and species-specific responses across habitat types. Models include random effects for diver and site, and results are interpreted using posterior means and credible intervals.
 
@@ -30,3 +31,4 @@ License
 -------
 
 This project is private and not licensed for redistribution. For collaboration inquiries, please contact scarlett@global-reef.com.
+
