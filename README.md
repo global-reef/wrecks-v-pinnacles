@@ -1,6 +1,7 @@
 # Shipwrecks x Pelagic Pinnacle Fish Assemblage comparison
 ========================
-[![DOI](https://zenodo.org/badge/DOI/10.5281/10.5281/zenodo.16784454.svg)](https://doi.org/10.5281/zenodo.16784454)
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/10.5281/zenodo.16784464.svg)](https://doi.org/10.5281/zenodo.16784464)
 
 This repository contains data and analysis for the Pelagic Pinnacle Project, which investigates fish assemblages on shipwrecks in the Gulf of Thailand, compared to fringing reefs and pelagic pinnacles.
 
