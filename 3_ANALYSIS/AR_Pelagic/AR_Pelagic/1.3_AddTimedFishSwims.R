@@ -205,3 +205,4 @@ save_results(fish_long, output_dir, analysis_date)
 # Print completion message
 cat("✅ Timed fish surveys added in! Data and plots saved in:", output_dir, "\n")
 
+write.csv(fish_long, file = file.path(output_dir, paste0("fish_long_", analysis_date, ".csv")), row.names = FALSE)
