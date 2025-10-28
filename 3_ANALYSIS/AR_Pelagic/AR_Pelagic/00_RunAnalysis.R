@@ -5,7 +5,7 @@
 ######### 0. Set Analysis Date & Create Output Folder #######
 # --------------------------
 # Enter the date for this analysis
-analysis_date <- "2025_06_19"  # Update these 3 for each analysis run
+analysis_date <- "2025_10_10"  # Update these 3 for each analysis run
 # file path (adjust date for correct date)
 file_path <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.06.19_ArtificialReefs_MASTER.csv"
 file_path_timed <- "~/Documents/1_GLOBAL REEF/0_PROJECTS/AR_Pelagic_Pinnacles/2_DATA/2025.06.19_TimedFishSurveys_Shallow_MASTER.csv"
@@ -49,7 +49,13 @@ summary(fit_re)
 summary(fit_zone)
 # summary(results_all_species$fit_mv)
 summary(spp_no_re$fit_mv)
+summary(best_fit)
 
 print(posterior_probs_re)
 print(posterior_probs_zone)
 print(posterior_contrasts_summary, n=Inf)
+
+
+out_path <- file.path(output_dir, paste0("posterior_summary_spp_", analysis_date, ".csv"))
+write.csv(posterior_summary_spp, out_path, row.names = FALSE)
+

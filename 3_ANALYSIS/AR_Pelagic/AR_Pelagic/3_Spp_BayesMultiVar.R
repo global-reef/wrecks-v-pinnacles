@@ -78,6 +78,9 @@ fish_wide <- spp_no_re$fish_species_wide
 pred_df <- spp_no_re$prediction_data
 
 summary(spp_no_re$fit_mv)
+fit_mv <- spp_no_re$fit_mv
+saveRDS(fit_mv, file = file.path(output_dir, "fit_mv.rds"))
+
 
 # Filter species by occurrence count
 species_occurrence <- fish_long %>%
@@ -234,8 +237,54 @@ species_order <- spp_lookup %>%
 pred_df <- pred_df %>%
   mutate(Species = factor(Species, levels = species_order))
 
+# predicted abundances table (tidy) 
+library(dplyr)
+library(tidyr)
+# Reorder Species by Species_clean (for the plot)
+species_order_plot <- spp_lookup %>%
+  arrange(factor(Species_clean, levels = spp_lookup$Species_clean)) %>%
+  pull(Species_clean)
 
-# Parse labels
+pred_df <- pred_df %>%
+  mutate(Species = factor(Species, levels = species_order_plot))
+
+# ---------- Tidy table (independent of the plot) ----------
+pred_summary <- pred_df %>%
+  select(Species, Classification, estimate__ = estimate__, lower__ = lower__, upper__ = upper__) %>%
+  mutate(estimate_ci = sprintf("%.2f (%.2f–%.2f)", estimate__, lower__, upper__))
+
+pred_tidy <- pred_summary %>%
+  select(Species, Classification, estimate_ci) %>%
+  pivot_wider(names_from = Classification, values_from = estimate_ci)
+
+species_order_table <- c(
+  "parrotfish","rabbitfish","butterflyfish","angelfish","cleanerwrasse","batfish",
+  "thicklip","redbreast","slingjaw","sweetlips","squirrelsoldier","triggerfish",
+  "smlsnapper","lrgsnapper","trevally","emperorfish","smlgrouper","lrggrouper"
+)
+
+pred_tidy <- pred_tidy %>%
+  mutate(Species = factor(Species, levels = species_order_table)) %>%
+  arrange(Species) %>%
+  filter(!is.na(Species))
+
+print(pred_tidy)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+
+# 1) Fix facet order to your table
+species_order_table <- c(
+  "parrotfish","rabbitfish","butterflyfish","angelfish","cleanerwrasse","batfish",
+  "thicklip","redbreast","slingjaw","sweetlips","squirrelsoldier","triggerfish",
+  "smlsnapper","lrgsnapper","trevally","emperorfish","smlgrouper","lrggrouper"
+)
+species_in_plot <- species_order_table[species_order_table %in% unique(pred_df$Species)]
+pred_df <- pred_df %>% mutate(Species = factor(Species, levels = species_in_plot))
+
+# 2) Parsed facet strip labels (unchanged)
 species_labels <- spp_lookup %>%
   mutate(
     display_name = case_when(
@@ -249,15 +298,18 @@ species_labels <- spp_lookup %>%
   select(Species_clean, label) %>%
   tibble::deframe()
 
+# 3) Colors
+buGn3 <- c("#B2E2E2", "#66C2A4", "#238B45")
 
-
-# Predicted Abundance Bar Plot
-p_species_prediction <- ggplot(pred_df, aes(x = Classification, y = estimate__, fill = Classification)) +
+# 4) Base plot
+p_base <- ggplot(pred_df, aes(x = Classification, y = estimate__, fill = Classification)) +
   geom_col(width = 0.7) +
   geom_errorbar(aes(ymin = lower__, ymax = upper__), width = 0.2) +
-  facet_wrap(~Species, scales = "free_y", ncol = 6,
-             labeller = labeller(Species = as_labeller(species_labels, label_parsed))) + 
-  scale_fill_brewer(palette = "BuGn") +
+  facet_wrap(
+    ~ Species, scales = "free_y", ncol = 6,
+    labeller = labeller(Species = as_labeller(species_labels, label_parsed))
+  ) +
+  scale_fill_manual(values = buGn3) +
   labs(
     title = "Predicted Abundance per Species by Habitat Type",
     x = "Habitat Type",
@@ -271,7 +323,63 @@ p_species_prediction <- ggplot(pred_df, aes(x = Classification, y = estimate__, 
     axis.text.x = element_text(angle = 30, hjust = 1),
     legend.position = "none"
   )
-print(p_species_prediction)
+
+# 5) Letters matched to your order
+classification_levels <- levels(factor(pred_df$Classification))
+x_left <- classification_levels[1]
+
+y_pos <- pred_df %>%
+  group_by(Species) %>%
+  summarise(y = max(upper__, na.rm = TRUE) * 1.05, .groups = "drop")
+
+letters_df <- y_pos %>%
+  mutate(
+    Species = factor(Species, levels = species_in_plot),
+    label = letters[seq_along(species_in_plot)][match(Species, species_in_plot)],
+    x = x_left
+  )
+
+# Rightmost x position (number of x levels)
+cls_levels <- if (is.factor(pred_df$Classification)) levels(pred_df$Classification) else unique(pred_df$Classification)
+x_right <- length(cls_levels)
+
+# Per-facet y (then nudge down a bit) + letters in your specified order
+y_pos <- pred_df %>%
+  group_by(Species) %>%
+  summarise(y = max(upper__, na.rm = TRUE), .groups = "drop")
+
+letters_df <- y_pos %>%
+  mutate(
+    Species = factor(Species, levels = species_in_plot),
+    label   = letters[seq_along(species_in_plot)][match(as.character(Species), species_in_plot)],
+    x = x_right,
+    y = y * 1.3     # move down a little from the top
+  )
+
+# Top-right Times labels
+p_species_prediction <- p_base +
+  geom_text(
+    data = letters_df,
+    aes(x = x, y = y, label = paste0("(", label, ")")),
+    inherit.aes = FALSE,
+    family = "Times",   # use "serif" if Times isn't available
+    fontface = "bold",
+    size = 4,
+    hjust = 0,          # right-align
+    vjust = 1           # top-align
+  )
+
+p_species_prediction <- p_species_prediction +
+  theme(
+    strip.text = element_text(
+      size = 12,
+      face = "bold",
+      margin = margin(t = 2, r = 0, b = 2, l = 0)  # smaller top/bottom margin
+    )
+  )
+
+print(p_species_prediction)  # fig 6
+
 # Pull all classification effects for Fringing and Pinnacle
 draws_spp <- spp_no_re$fit_mv %>%
   spread_draws(`b_.*_ClassificationFringing`, `b_.*_ClassificationPinnacle`, regex = TRUE) %>%
@@ -337,7 +445,7 @@ species_diff_plot <- ggplot(draws_spp, aes(x = value, y = sci_name, fill = Habit
   scale_y_discrete(limits = rev) +
   theme_clean +
   theme(axis.text.y = element_text(size = 9))
-print(species_diff_plot)
+print(species_diff_plot) # not using rn 
 
 # Extract posterior draws
 post_spp <- as_draws_df(spp_no_re$fit_mv)
@@ -407,8 +515,9 @@ spp_heatmap <- ggplot(heatmap_data, aes(x = Comparison, y = sci_name, fill = Med
     legend.text = element_text(size = 11)
   )
 
-print(spp_heatmap)
-
+print(spp_heatmap) # fig 7 
+library(tidyverse)
+library(tidybayes)
 
 
 
@@ -443,10 +552,14 @@ save_species_plots(
   analysis_date = analysis_date
 )
 
-print(p_species_prediction)
-print(spp_heatmap)
+print(p_species_prediction) # fig 6 
+print(spp_heatmap) # fig 7 
 print(species_diff_plot)
 
 print(posterior_contrasts_summary, n=Inf)
 
 
+
+
+out_path <- file.path(output_dir, paste0("posterior_summary_spp_", analysis_date, ".csv"))
+write.csv(posterior_summary_spp, out_path, row.names = FALSE)

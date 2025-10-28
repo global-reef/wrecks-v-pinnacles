@@ -8,11 +8,11 @@ run_diversity_models <- function(fish_long, survey_level) {
  
   # --- Shannon Species Diversity ---
   species_diversity_df <- fish_long %>%
-    group_by(survey_id, Site, Zone, Species) %>%
+    group_by(survey_id, Site, Classification, Species) %>%
     summarise(Count = sum(Count), .groups = "drop") %>%
     spread(key = Species, value = Count, fill = 0) %>%
     mutate(
-      shannon_species_diversity = diversity(select(., -survey_id, -Site, -Zone), index = "shannon")
+      shannon_species_diversity = diversity(select(., -survey_id, -Site, -Classification), index = "shannon")
     )
   
   # Merge into survey_level
@@ -21,7 +21,7 @@ run_diversity_models <- function(fish_long, survey_level) {
   
   # Fit Shannon diversity model
   fit_species_diversity <- brm(
-    formula = shannon_species_diversity ~ Zone + (1 | Site),
+    formula = shannon_species_diversity ~ Classification + (1 | Site),
     data = survey_level,
     family = gaussian(),
     chains = 4,
@@ -55,11 +55,13 @@ results_diversity <- run_diversity_models(fish_long, survey_level)
 summary(results_diversity$fit_species_diversity)
 library(tidybayes)
 
+
+
 survey_level %>%
   add_fitted_draws(results_diversity$fit_species_diversity, re_formula = NA) %>%
-  ggplot(aes(x = Zone, y = .value)) +
+  ggplot(aes(x = Classification, y = .value)) +
   stat_halfeye(.width = 0.95, fill = "skyblue", alpha = 0.6) +
   theme_minimal() +
-  labs(title = "Posterior Estimates of Shannon Diversity by Zone",
-       y = "Estimated Shannon Index", x = "Zone")
+  labs(title = "Posterior Estimates of Shannon Diversity by Reef Classification",
+       y = "Estimated Shannon Index", x = "Classification")
 

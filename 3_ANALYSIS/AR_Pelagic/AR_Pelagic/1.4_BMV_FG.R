@@ -75,7 +75,36 @@ results_fg_mv <- run_functional_group_mv_regression(fish_long, dist = "negbinomi
 summary(results_fg_mv$fit_fg_mv)
 # evidence of overdisperson here - should try random effect for site, and also try for zero-inflated neg binom model 
 survey_level <- results_fg_mv$survey_level
+
+
 #####  try adding a random intercept for site 
+
+survey_level <- fish_long %>%
+  mutate(survey_run = paste0(survey_id, "_", Researcher)) %>%
+  group_by(survey_run, survey_id, Site, Classification, Zone, Date, Functional_Group) %>%
+  summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Functional_Group, values_from = Count, values_fill = 0) %>%
+  mutate(Year = factor(year(Date)),
+         Classification = relevel(factor(Classification), ref = "Shipwreck"))
+
+# adding month and year 
+survey_level <- fish_long %>%
+  mutate(survey_run = paste0(survey_id, "_", Researcher)) %>%
+  group_by(survey_run, survey_id, Site, Classification, Zone, Date, Functional_Group) %>%
+  summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Functional_Group, values_from = Count, values_fill = 0) %>%
+  mutate(
+    Year = factor(year(Date)),
+    Month_Year = format(floor_date(Date, "month"), "%Y-%m"),
+    Month_Year = factor(
+      Month_Year,
+      levels = format(sort(unique(floor_date(Date, "month"))), "%Y-%m")  # keeps chrono order
+    ),
+    Classification = relevel(factor(Classification), ref = "Shipwreck")
+  )
+
+
+
 
 # Fit a multivariate regression with a random intercept for Site
 fit_re <- brm(
@@ -87,11 +116,13 @@ fit_re <- brm(
   iter = 2000,
   warmup = 500,
   control = list(adapt_delta = 0.95, max_treedepth = 15),
-  backend = "cmdstanr"
+  backend = "cmdstanr", save_pars = save_pars(all = TRUE)
 )
 
-print(summary(fit_re))
+### fit_re (negative-binomial with random effect for site) was the best model based on LOO 
+summary(fit_re)
 
+saveRDS(fit_re, file = file.path(output_dir, "fit_re.rds"))
 
 
 ### MODEL SELECTION 
@@ -108,24 +139,147 @@ loo_compare(loo(fit_re),loo(results_fg_mv$fit_fg_mv))
 #### fit_re (negative-binomial with random effect for site) was the best model based on LOO 
 summary(fit_re)
 
-
+saveRDS(fit_re, output_dir, file = "fit_re.RData")
 
 # Extract predictions excluding random effects
 ce_re <- conditional_effects(fit_re, effects = "Classification", re_formula = NA)
 
-# Format for table
 fg_summary <- bind_rows(lapply(seq_along(ce_re), function(i) {
   ce_re[[i]] %>%
     select(Classification, estimate__, lower__, upper__) %>%
     mutate(Functional_Group = names(ce_re)[i])
 })) %>%
   mutate(
-    estimate_fmt = sprintf("%.1f (%.0f–%.0f)", estimate__, lower__, upper__)
+    estimate_fmt = sprintf("%.1f [%.1f–%.1f]", estimate__, lower__, upper__)
   ) %>%
   select(Functional_Group, Classification, estimate_fmt) %>%
   pivot_wider(names_from = Classification, values_from = estimate_fmt)
 
 # View
 fg_summary
+
+
+# Combine functional group predictions into total per Classification
+total_pred <- bind_rows(lapply(seq_along(ce_re), function(i) {
+  ce_re[[i]] %>%
+    select(Classification, estimate__, lower__, upper__) %>%
+    mutate(FG = names(ce_re)[i])
+})) %>%
+  group_by(Classification) %>%
+  summarise(
+    estimate = sum(estimate__),
+    lower = sum(lower__),
+    upper = sum(upper__)
+  ) %>%
+  mutate(
+    estimate_fmt = sprintf("%.0f [%.0f–%.0f]", estimate, lower, upper)
+  )
+total_pred
+
+plot(ce_re)
+
+
+### testing the addition of year as a random effect - in response to review # 1 ##########
+library(dplyr); library(lubridate); library(brms)
+
+# 1) Current best (kept for reference)
+# fit_re already exists
+
+# 2) Add random intercept for Year  (brms can't have two seperated  | p | terms ):
+fit_re_year_uncorr <- brm(
+  bf(Grazer       ~ Classification + (1|p|Site) + (1|Year)) +
+    bf(Invertivore  ~ Classification + (1|p|Site) + (1|Year)) +
+    bf(Mesopredator ~ Classification + (1|p|Site) + (1|Year)) +
+    bf(HTLP         ~ Classification + (1|p|Site) + (1|Year)),
+  data = survey_level,
+  family = negbinomial(),
+  chains = 4, cores = 4, iter = 2000, warmup = 500,
+  control = list(adapt_delta = 0.95, max_treedepth = 15),
+  backend = "cmdstanr", save_pars = save_pars(all = TRUE)
+)
+saveRDS(fit_re, file = file.path(output_dir, "fit_re_yr.rds"))
+
+
+# try with month-yrs 
+# assumes survey_level already has Month_Year as a plain factor in chrono order
+
+fit_months <- brm(
+  bf(Grazer        ~ Classification + (1|p|Site) + (1|Month_Year)) +
+    bf(Invertivore ~ Classification + (1|p|Site) + (1|Month_Year)) +
+    bf(Mesopredator~ Classification + (1|p|Site) + (1|Month_Year)) +
+    bf(HTLP        ~ Classification + (1|p|Site) + (1|Month_Year)),
+  data = survey_level,
+  family = negbinomial(),
+  chains = 4, cores = 4, iter = 2000, warmup = 500,
+  control = list(adapt_delta = 0.95, max_treedepth = 15),
+  backend = "cmdstanr", save_pars = save_pars(all = TRUE)
+)
+
+saveRDS(fit_months, file = file.path(output_dir, "fit_months.rds"))
+
+
+# LOO 
+library(brms)
+# Add LOO (with moment matching) to all three
+fit_re             <- add_criterion(fit_re, "loo", moment_match = TRUE)
+fit_re_year_uncorr <- add_criterion(fit_re_year_uncorr, "loo", moment_match = TRUE)
+fit_months         <- add_criterion(fit_months, "loo", moment_match = TRUE)
+
+# Compare models
+cmp <- brms::loo_compare(fit_re, fit_re_year_uncorr, fit_months)
+cmp_df <- as.data.frame(cmp)
+cmp_df$model <- rownames(cmp_df)
+cmp_df
+
+# Problematic observations (k > 0.7) per model
+loo::pareto_k_ids(fit_re$criteria$loo,             threshold = 0.7)
+loo::pareto_k_ids(fit_re_year_uncorr$criteria$loo, threshold = 0.7)
+loo::pareto_k_ids(fit_months$criteria$loo,         threshold = 0.7)
+
+# Bayes R2
+brms::bayes_R2(fit_re)
+brms::bayes_R2(fit_re_year_uncorr)
+brms::bayes_R2(fit_months)
+
+best_fit <- fit_months
+
+saveRDS(fit_months, file = file.path(output_dir, "best_fit.rds"))
+
+# Extract predictions excluding random effects
+ce_re <- conditional_effects(best_fit, effects = "Classification", re_formula = NA)
+
+fg_summary <- bind_rows(lapply(seq_along(ce_re), function(i) {
+  ce_re[[i]] %>%
+    select(Classification, estimate__, lower__, upper__) %>%
+    mutate(Functional_Group = names(ce_re)[i])
+})) %>%
+  mutate(
+    estimate_fmt = sprintf("%.1f [%.1f–%.1f]", estimate__, lower__, upper__)
+  ) %>%
+  select(Functional_Group, Classification, estimate_fmt) %>%
+  pivot_wider(names_from = Classification, values_from = estimate_fmt)
+
+# View
+fg_summary
+
+
+# Combine functional group predictions into total per Classification
+total_pred <- bind_rows(lapply(seq_along(ce_re), function(i) {
+  ce_re[[i]] %>%
+    select(Classification, estimate__, lower__, upper__) %>%
+    mutate(FG = names(ce_re)[i])
+})) %>%
+  group_by(Classification) %>%
+  summarise(
+    estimate = sum(estimate__),
+    lower = sum(lower__),
+    upper = sum(upper__)
+  ) %>%
+  mutate(
+    estimate_fmt = sprintf("%.0f [%.0f–%.0f]", estimate, lower, upper)
+  )
+total_pred
+
+plot(ce_re)
 
 

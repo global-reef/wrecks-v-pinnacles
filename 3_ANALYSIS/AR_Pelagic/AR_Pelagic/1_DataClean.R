@@ -5,7 +5,8 @@ library(ggplot2)
 library(ggthemes)
 library(gridExtra)
 library(lubridate)
-
+library(stringr)
+library(forcats)
 
 
 
@@ -74,6 +75,12 @@ clean_data <- function(file_path) {
   # round to the nearest ineger 
   fish_long <- fish_long %>% 
     mutate(Count = ceiling(Count))
+  # fix 0025 → 2025
+  fish_long <- fish_long %>%
+    mutate(Date = if_else(year(Date) == 25,
+                          as.Date(make_date(2025, month(Date), mday(Date))),
+                          Date))
+  
   # Create a unique survey ID if not already present
   if(!"survey_id" %in% colnames(fish_long)) {
     fish_long <- fish_long %>%
@@ -93,9 +100,19 @@ fish_long <- fish_long %>%
 # sorry girlie 
 fish_long <- fish_long %>% 
   filter(Researcher != "Keisha")
+# fix some bad years 
+# count bad years
+fish_long %>%
+  summarise(bad = sum(year(Date) == 25, na.rm = TRUE))
+
+# quick check
+summary(lubridate::year(fish_long$Date))
+
 # Filter out pre-2023-09-01 surveys for Aow Mao Wreck and No Name Wreck (pre-deployment)
 fish_long <- fish_long %>%
   filter(!(Site %in% c("Aow Mao Wreck", "No Name Wreck") & Date < as.Date("2023-09-01")))
+fish_long <- fish_long %>% mutate(Depth = if_else(Site == "No Name AR" & Depth == 0, NA_real_, Depth))
+
 
 # --------------------------
 ######### 2.  Summarize Functional Groups #######

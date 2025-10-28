@@ -5,7 +5,7 @@ library(lubridate)
 library(ggplot2)
 
 
-pelagic_sites <- c("Chumphon", "Southwest", "No Name Pinnacle")
+pelagic_sites <- c("Chumphon", "Southwest", "White Rock")
 
 fish_long <- fish_long %>%
   mutate(
@@ -18,15 +18,19 @@ fish_long <- fish_long %>%
   )
 
 survey_level2 <- fish_long %>%
-  group_by(survey_id, Site, Classification, Zone, Functional_Group, Researcher) %>%
-  summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
-  spread(key = Functional_Group, value = Count, fill = 0) %>%
   mutate(
-    Grazer    = ifelse(is.na(Grazer), 0, Grazer),
+    Year = factor(year(Date)),
+    survey_run = paste0(survey_id, "_", as.character(Researcher))
+  ) %>%
+  group_by(survey_run, survey_id, Year, Site, Classification, Zone, Functional_Group, Researcher, Date) %>%
+  summarise(Count = sum(Count, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Functional_Group, values_from = Count, values_fill = 0) %>%
+  mutate(
+    Grazer       = ifelse(is.na(Grazer), 0, Grazer),
     Invertivore  = ifelse(is.na(Invertivore), 0, Invertivore),
     Mesopredator = ifelse(is.na(Mesopredator), 0, Mesopredator),
     HTLP         = ifelse(is.na(HTLP), 0, HTLP),
-    Zone = factor(Zone, levels = c("wreck", "nearshore", "pelagic"))  # explicitly re-level
+    Zone = factor(Zone, levels = c("wreck","nearshore","pelagic"))
   )
 
 
@@ -45,10 +49,42 @@ fit_zone <- brm(
   backend = "cmdstanr"
 )
 summary(fit_zone)
-loo_compare(loo(fit_re), loo(fit_zone))
+
+bayes_R2(fit_zone)
+bayes_R2(fit_zone_yr)
+bayes_R2(best_fit)
+
+fit_zone_yr <- brm(
+  formula = mvbind(Grazer, Invertivore, Mesopredator, HTLP) ~ Zone + (1 | p | Site) + (1 |Year),
+  data = survey_level2,
+  family = negbinomial(),
+  chains = 4,
+  cores = 4,
+  iter = 2000,
+  warmup = 500,
+  control = list(adapt_delta = 0.9, max_treedepth = 20),
+  backend = "cmdstanr"
+)
+summary(fit_zone_yr)
+loo_compare(loo(best_fit), loo(fit_zone_yr))
 
 
+fit_zone_my <- brm(
+  formula = mvbind(Grazer, Invertivore, Mesopredator, HTLP) 
+  ~ Zone + (1 | p | Site) + (1 |Month_Year),
+  data = survey_level,
+  family = negbinomial(),
+  chains = 4,
+  cores = 4,
+  iter = 2000,
+  warmup = 500,
+  control = list(adapt_delta = 0.9, max_treedepth = 20),
+  backend = "cmdstanr"
+)
+summary(fit_zone_my)
+loo_compare(loo(best_fit), loo(fit_zone_my))
 
+fit_zone <- fit_zone_my 
 
 #### posterior draws 
 # generate new data 
@@ -105,7 +141,7 @@ prop_draws_plot <-ggplot(prop_draws, aes(x = Zone, y = Proportion, fill = Functi
     x = "Zone"
   ) +
   scale_fill_brewer(palette = "Set2") +
-  theme_clean 
+  theme_clean  + theme(text = element_text(size = 16)) 
 print(prop_draws_plot)
 
 # Summarize and calculate proportions by Zone
@@ -120,11 +156,12 @@ proportion_plot_zone <- ggplot(fg_zone, aes(x = Zone, y = Proportion, fill = Fun
   geom_bar(stat = "identity") +
   labs(title = "Proportional Composition of Functional Groups by Zone",
        x = "Zone",
-       y = "Proportion of Total Fish Count") +
-  theme_clean +
+       y = "Proportion of Total Fish Count",
+       fill = "Functional \n Group") +
+  theme_clean + theme(text = element_text(size = 16)) + 
   scale_fill_brewer(palette = "BuGn") # or "Greys" or "PuBu"
 
-print(proportion_plot_zone)
+print(proportion_plot_zone) # raw numbers by zone 
 
 
 ## --------------------------------------------- based on zones----------------------------------- # 
@@ -166,13 +203,13 @@ ggplot(zone_summary, aes(x = Estimate, y = Functional_Group, color = Zone)) +
   geom_errorbarh(aes(xmin = LowerCI, xmax = UpperCI),
                  position = position_dodge(width = 0.6), height = 0.2) +
   geom_vline(xintercept = 0, linetype = "dashed") +
-  theme_minimal() + 
   scale_fill_brewer(palette = "BuGn") +
   labs(
     title = "Effect of Zone on Functional Group Abundance (log-scale)",
     x = "Posterior Median Estimate (log-scale)",
-    y = "Functional Group"
-  )
+    y = "Functional Group",
+    fill = "Functional \n Group") +
+  theme_clean + theme(text = element_text(size = 16))
 
 #  Get predicted abundance per Zone per functional group
 pred_df <- conditional_effects(fit_zone, effects = "Zone", re_formula = NA)
@@ -203,15 +240,16 @@ library(ggplot2)
 
 fg_zone_plot <- ggplot(pred_abund_prop, aes(x = Zone, y = Proportion, fill = Functional_Group)) +
   geom_bar(stat = "identity", position = "stack", color = "white") +
-  theme_clean +
   labs(
     title = " ",
     y = "Proportion of Predicted Abundance",
-    x = "Zone"
-  ) +
+    x = "Zone",
+    fill = "Functional \n Group") +
+  theme_clean + theme(text = element_text(size = 16)) + 
   scale_fill_brewer(palette = "BuGn")
 
- 
+print(fg_zone_plot) # FIGURE 4
+
 library(tidybayes)
 library(ggplot2)
 library(dplyr)
@@ -271,9 +309,9 @@ library(tidyr)
      "Nearshore" = "#188041",
      "Pelagic" = "#a6dede"
    )) +
-   theme_clean
+   theme_clean +  theme(text = element_text(size = 16))
  
- print(zone_diff_plot)
+ print(zone_diff_plot) # fig 5 
  
 
 save_zone_proportion_outputs <- function(prop_draws_plot,  zone_diff_plot, fg_zone_plot, output_dir, analysis_date) {
@@ -304,7 +342,11 @@ save_zone_proportion_outputs <- function(prop_draws_plot,  zone_diff_plot, fg_zo
 }
 
 # Call the function
-save_zone_proportion_outputs(prop_draws_plot = prop_draws_plot, fg_zone_plot = proportion_plot_zone, output_dir = output_dir,  zone_diff_plot =  zone_diff_plot, analysis_date = analysis_date)
+save_zone_proportion_outputs(prop_draws_plot = prop_draws_plot, 
+                             fg_zone_plot = fg_zone_plot, 
+                             output_dir = output_dir,  
+                             zone_diff_plot =  zone_diff_plot, 
+                             analysis_date = analysis_date)
 
 
 
@@ -366,6 +408,6 @@ posterior_probs_zone <- compute_posterior_probabilities(fit_zone)
 print(posterior_probs_zone)
 
 
-
-
+saveRDS(fit_zone, file = file.path(output_dir, "fit_zone.rds"))
+saveRDS(fit_zone_yr, file = file.path(output_dir, "fit_zone_yr.rds"))
 

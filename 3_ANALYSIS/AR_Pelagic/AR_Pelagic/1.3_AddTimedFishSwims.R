@@ -79,6 +79,11 @@ clean_timed_fish_data <- function(file_path) {
   # Convert Weather to factor if it exists
   df$Weather <- as.factor(df$Weather)
   
+  df <- df%>%
+    mutate(Date = if_else(year(Date) == 25,
+                          as.Date(make_date(2025, month(Date), mday(Date))),
+                          Date))
+  
     # Create Survey ID column
     df <- df %>%
       mutate(survey_id = paste(Site, Date, sep = "_"))

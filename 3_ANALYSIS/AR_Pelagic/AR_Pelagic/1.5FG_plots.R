@@ -1,10 +1,11 @@
 
 
 ## --------------------------------------------- based on fit_re ----------------------------------- # 
-
+library(tidyverse)
 library(tibble)
 library(tidyr)
 library(stringr)
+library(brms)
 
 
 # create custom ggplot2 theme 
@@ -13,15 +14,32 @@ theme_clean <- theme_minimal(base_family = "Times New Roman") +
     legend.position = "right",
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    plot.title = element_blank()
+    plot.title = element_blank(),    
+    panel.background = element_rect(fill = "white", colour = NA),
+    plot.background = element_rect(fill = "white", colour = NA),
+    panel.grid = element_blank()
   )
-# to run it use : your_plot + theme_clean
-
+# to run it use : plot + theme_clean
+custom_colours1 <- c(
+  "Grazer" = "#66c2a4",         # darker greenish
+  "Invertivore" = "#41b6c4",    # mid blue-green
+  "Mesopredator" = "#2c7fb8",   # deeper blue
+  "HTLP" = "#253494"            # darkest
+)
+custom_colours2 <- c(
+  "Grazer" = "#F8EA8C",      # Sunlight (yellow)
+  "Invertivore" = "#F49D7D", # Coral (orange-pink)
+  "Mesopredator" = "#49B3CF",# Aquamarine (light blue)
+  "HTLP" = "#4783F9"         # True Blue (dark blue)
+)
+buGn3 <- c("#B2E2E2", "#66C2A4", "#238B45")
 
 # Create a data frame with predicted values based on the model summary.
 # (Baseline = Shipwreck; effects for Fringing and Pinnacle are added to the baseline intercept.)
 # Build new pred_df from actual posterior means
-coefs <- fixef(fit_re)
+coefs <- fixef(best_fit)
+
+
 pred_df <- tibble::tribble(
   ~Functional_Group,  ~Classification, ~Intercept, ~Effect,
   "Grazer",        "Shipwreck",     coefs["Grazer_Intercept", "Estimate"], 0,
@@ -43,7 +61,9 @@ pred_df <- tibble::tribble(
 # Check the table (optional)
 pred_df <- as.data.frame(pred_df)
 print(pred_df)
-
+# Ensure functional group order
+pred_df$Functional_Group <- factor(pred_df$Functional_Group,
+                                   levels = c("Grazer", "Invertivore", "Mesopredator", "HTLP"))
 # Create a grouped bar plot faceted by Functional Group.
 abundance_plot <- ggplot(pred_df, aes(x = Classification, y = Predicted, fill = Classification)) +
   geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
@@ -51,10 +71,23 @@ abundance_plot <- ggplot(pred_df, aes(x = Classification, y = Predicted, fill = 
   labs(title = "Predicted Abundance by Site Classification",
        x = "Site Classification",
        y = "Predicted Abundance") +
-  theme_clean +
+  theme_clean + theme(text = element_text(size = 16)) + 
   scale_fill_brewer(palette = "BuGn")
 
-print(abundance_plot) # fig 2 
+print(abundance_plot) # fig 2 - predicted abund
+
+
+# Create a grouped bar plot faceted by Functional Group.
+abundance_plot2 <- ggplot(pred_df, aes(x = Functional_Group, y = Predicted, fill = Functional_Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  facet_wrap(~ Classification) +
+  labs(title = NULL, x = NULL, y = NULL, fill = NULL) +  # remove all labels
+  theme_clean +
+  scale_fill_manual(values = custom_colours2) + 
+  theme(strip.text = element_blank(), strip.background = element_blank()) + 
+  theme(text = element_text(family = "Arial"))
+
+print(abundance_plot2) # for graphical abstract  
 
 ## proportions
 pred_df_prop <- pred_df %>%
@@ -66,12 +99,31 @@ proportion_plot <- ggplot(pred_df_prop, aes(x = Classification, y = Proportion, 
   geom_bar(stat = "identity") +
   labs(title = "Proportional Composition of Functional Groups by Site Classification",
        x = "Site Classification",
-       y = "Proportion of Total Predicted Abundance") +
-  theme_clean +
+       y = "Proportion of Predicted Abundance",
+       fill = "Functional \n Group") +
+  theme_clean + theme(text = element_text(size = 16)) + 
   scale_fill_brewer(palette = "BuGn") # or "Greys" or "PuBu"
 
-print(proportion_plot)
+print(proportion_plot) # figure 2 - proportional predicted abund 
 
+
+# Ensure functional group order
+pred_df_prop$Functional_Group <- factor(pred_df_prop$Functional_Group,
+                                        levels = c("Grazer", "Invertivore", "Mesopredator", "HTLP"))
+
+
+# Plot with dodged bars and facets by Classification
+proportion_plot2 <- ggplot(pred_df_prop, aes(x = Functional_Group, y = Proportion, fill = Functional_Group)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Classification) +
+  labs(title = NULL, x = NULL, y = NULL, fill = NULL) +  # remove all labels
+  theme_clean +
+  scale_fill_manual(values = custom_colours2) + 
+  theme(strip.text = element_blank(), strip.background = element_blank()) + 
+  theme(text = element_text(family = "Arial"))
+
+
+print(proportion_plot2)
 
 
 
@@ -143,10 +195,9 @@ posterior_differences <-
     y = "Functional Group"
   ) +
   scale_fill_manual(values = c("#188041", "#a6dede")) +
-  theme_minimal(base_size = 12) +
-  theme_clean 
+  theme_clean + theme(text = element_text(size = 16)) 
 
-print(posterior_differences)  # fig 3 
+print(posterior_differences)  # fig 3 - posterior differences 
 
 
 
@@ -155,7 +206,7 @@ save_model_outputs <- function(pred_df, abundance_plot, forest_plot, posterior_d
   write.csv(pred_df, file = file.path(output_dir, paste0("Predicted_Abundance_", analysis_date, ".csv")),
             row.names = FALSE)
   # Save abundance bar plot
-  ggsave(filename = file.path(output_dir, paste0("FIG2_Predicted_Abundance_Bars_", analysis_date, ".png")),
+  ggsave(filename = file.path(output_dir, paste0("Predicted_Abundance", analysis_date, ".png")),
          plot = abundance_plot, width = 8, height = 6)
   # Save forest plot
   ggsave(filename = file.path(output_dir, paste0("Classification_ForestPlot_", analysis_date, ".png")),
@@ -164,7 +215,7 @@ save_model_outputs <- function(pred_df, abundance_plot, forest_plot, posterior_d
   ggsave(filename = file.path(output_dir, paste0("FIG3_Posterior_Differences_", analysis_date, ".png")),
          plot = posterior_differences, width = 8, height = 6)
   # Save proportional plot
-  ggsave(filename = file.path(output_dir, paste0("Proportional_Abundance_", analysis_date, ".png")),
+  ggsave(filename = file.path(output_dir, paste0("FIG2_Proportional_Abundance_", analysis_date, ".png")),
          plot = proportion_plot, width = 8, height = 6)
   message("✅ Model predictions and all plots saved to: ", output_dir)
 }
@@ -176,7 +227,7 @@ save_model_outputs(pred_df, abundance_plot, forest_plot, posterior_differences, 
 
 
 
-##### Function to compute posterior probabilities for all zone comparisons
+ ##### Function to compute posterior probabilities for all zone comparisons
 library(posterior)
 library(tidybayes)
 library(purrr)
@@ -224,3 +275,7 @@ compute_posterior_probabilities_re <- function(fit_model, baseline_zone = "Shipw
 # Example usage
 posterior_probs_re <- compute_posterior_probabilities_re(fit_re, baseline_zone = "Shipwreck")
 print(posterior_probs_re)
+
+posterior_probs_my <- compute_posterior_probabilities_re(best_fit, baseline_zone = "Shipwreck")
+print("best fit- month years")
+print(posterior_probs_my)
