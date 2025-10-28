@@ -2,3 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
+.RData
+.Rhistory
+.Rproj.user/
+.Ruserdata/
+*.Rapp.history
