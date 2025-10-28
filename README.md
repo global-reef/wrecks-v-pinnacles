@@ -17,8 +17,8 @@ Main Features
 
 - Timed swim fish surveys across pinnacles, reefs, and wrecks
 - Functional group classification of observed species
-- Bayesian multivariate negative bionimal and ZINB models via `brms` in R
-- Site-level random effects and habitat-type comparisons
+- Bayesian multivariate negative bionimal  via `brms` in R
+- Site-level and month-year (temporal) random effects and habitat-type comparisons
 - Posterior visualization and credible interval summaries
 
 Notes
