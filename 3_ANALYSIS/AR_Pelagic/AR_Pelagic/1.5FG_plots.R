@@ -6,10 +6,11 @@ library(stringr)
 library(brms)
 library(tidybayes)
 library(posterior)
+library(grDevices)
 library(ggplot2)
 
 ### custom theme and colour palettes ###############################################################
-theme_clean <- theme_minimal(base_family = "Times New Roman") +
+theme_clean <- theme_minimal(base_family = "serif", base_size = 10) +
   theme(
     legend.position = "right",
     panel.grid.major = element_blank(),
@@ -17,7 +18,15 @@ theme_clean <- theme_minimal(base_family = "Times New Roman") +
     plot.title = element_blank(),
     panel.background = element_rect(fill = "white", colour = NA),
     plot.background = element_rect(fill = "white", colour = NA),
-    panel.grid = element_blank()
+    panel.grid = element_blank(),
+    
+    axis.title = element_text(size = 11),
+    axis.text  = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text  = element_text(size = 10),
+    strip.text   = element_text(size = 11),
+    
+    plot.margin = margin(6, 6, 6, 6)
   )
 
 custom_colours1 <- c(
@@ -65,7 +74,7 @@ abundance_plot <- ggplot(pred_df, aes(x = Classification, y = Predicted, fill = 
   labs(title = "Predicted Abundance by Site Classification",
        x = "Site Classification",
        y = "Predicted Abundance") +
-  theme_clean + theme(text = element_text(size = 16)) +
+  theme_clean + 
   scale_fill_brewer(palette = "BuGn")
 
 print(abundance_plot)
@@ -77,8 +86,7 @@ abundance_plot2 <- ggplot(pred_df, aes(x = Functional_Group, y = Predicted, fill
   labs(title = NULL, x = NULL, y = NULL, fill = NULL) +
   theme_clean +
   scale_fill_manual(values = custom_colours2) +
-  theme(strip.text = element_blank(), strip.background = element_blank()) +
-  theme(text = element_text(family = "Arial"))
+  theme(strip.text = element_blank(), strip.background = element_blank())
 
 print(abundance_plot2)
 
@@ -94,7 +102,7 @@ proportion_plot <- ggplot(pred_df_prop, aes(x = Classification, y = Proportion, 
        x = "Site Classification",
        y = "Proportion of Predicted Abundance",
        fill = "Functional \n Group") +
-  theme_clean + theme(text = element_text(size = 16)) +
+  theme_clean + 
   scale_fill_brewer(palette = "BuGn")
 
 print(proportion_plot)
@@ -108,8 +116,7 @@ proportion_plot2 <- ggplot(pred_df_prop, aes(x = Functional_Group, y = Proportio
   labs(title = NULL, x = NULL, y = NULL, fill = NULL) +
   theme_clean +
   scale_fill_manual(values = custom_colours2) +
-  theme(strip.text = element_blank(), strip.background = element_blank()) +
-  theme(text = element_text(family = "Arial"))
+  theme(strip.text = element_blank(), strip.background = element_blank()) 
 
 print(proportion_plot2)
 
@@ -165,24 +172,46 @@ posterior_differences <- ggplot(draws_long, aes(x = Difference, y = Group, fill 
        x = "Estimated Log Difference (relative to Shipwreck)",
        y = "Functional Group") +
   scale_fill_manual(values = c("#188041", "#a6dede")) +
-  theme_clean + theme(text = element_text(size = 16))
+  theme_clean 
 
 print(posterior_differences)
 
 ### save tables and plots ##########################################################################
+
+manuscript_id <- "M15062"
+
+save_ir_fig <- function(plot, fig_no, output_dir,
+                        width_mm, height_mm,
+                        dpi = 600) {
+  
+  base <- paste0(manuscript_id, "_Fig", fig_no)
+  
+  ggsave(
+    filename = file.path(output_dir, paste0(base, ".pdf")),
+    plot = plot,
+    width = width_mm, height = height_mm, units = "mm",
+    device = grDevices::pdf
+  )
+  
+  ggsave(
+    filename = file.path(output_dir, paste0(base, ".tif")),
+    plot = plot,
+    width = width_mm, height = height_mm, units = "mm",
+    dpi = dpi,
+    compression = "lzw"
+  )
+}
+
+
 save_model_outputs <- function(pred_df, abundance_plot, forest_plot, posterior_differences,
                                proportion_plot, output_dir, analysis_date) {
   write.csv(pred_df,
             file = file.path(output_dir, paste0("Predicted_Abundance_", analysis_date, ".csv")),
             row.names = FALSE)
-  ggsave(file.path(output_dir, paste0("Predicted_Abundance_", analysis_date, ".png")),
-         abundance_plot, width = 8, height = 6)
-  ggsave(file.path(output_dir, paste0("Classification_ForestPlot_", analysis_date, ".png")),
-         forest_plot, width = 8, height = 6)
-  ggsave(file.path(output_dir, paste0("FIG3_Posterior_Differences_", analysis_date, ".png")),
-         posterior_differences, width = 8, height = 6)
-  ggsave(file.path(output_dir, paste0("FIG2_Proportional_Abundance_", analysis_date, ".png")),
-         proportion_plot, width = 8, height = 6)
+  # Inter-Research submission figures
+  save_ir_fig(proportion_plot,       2, output_dir, width_mm = 180, height_mm = 120)
+  save_ir_fig(posterior_differences, 3, output_dir, width_mm = 180, height_mm = 110)
+  
   message("✅ Saved predictions and plots to: ", output_dir)
 }
 

@@ -1,13 +1,14 @@
 # Load required libraries
-library(dplyr)
 library(tidyr)
 library(brms)
-library(ggplot2)
 library(tidybayes)
 library(grid)
 library(png)
 library(abind)
 library(posterior)
+library(ggplot2)
+library(dplyr)
+library(tibble)
 
 # Clean species names to be brms-safe
 brms_safe_name <- function(x) {
@@ -73,13 +74,30 @@ run_species_mv_model <- function(fish_long,
 }
 
 # Run model
-spp_no_re <- run_species_mv_model(fish_long)
-fish_wide <- spp_no_re$fish_species_wide
-pred_df <- spp_no_re$prediction_data
+fit_path <- file.path(output_dir, "fit_mv.rds")
 
-summary(spp_no_re$fit_mv)
-fit_mv <- spp_no_re$fit_mv
-saveRDS(fit_mv, file = file.path(output_dir, "fit_mv.rds"))
+if (file.exists(fit_path)) {
+  
+  message("Loading existing species-level model from disk")
+  fit_mv <- readRDS(fit_path)
+  
+  # Recreate prediction data from the fitted model
+  ce <- conditional_effects(fit_mv, effects = "Classification", re_formula = NA)
+  pred_df <- bind_rows(lapply(seq_along(ce), function(i) ce[[i]]))
+  
+} else {
+  
+  message("Fitting species-level multivariate model")
+  spp_no_re <- run_species_mv_model(fish_long)
+  
+  fit_mv   <- spp_no_re$fit_mv
+  fish_wide <- spp_no_re$fish_species_wide
+  pred_df  <- spp_no_re$prediction_data
+  
+  saveRDS(fit_mv, fit_path)
+}
+
+summary(fit_mv)
 
 
 # Filter species by occurrence count
@@ -247,6 +265,16 @@ species_order_plot <- spp_lookup %>%
 
 pred_df <- pred_df %>%
   mutate(Species = factor(Species, levels = species_order_plot))
+pred_df <- pred_df %>%
+  filter(!is.na(Species), Species != "NA")
+pred_df <- pred_df %>%
+  mutate(
+    Classification = factor(
+      Classification,
+      levels = c("Fringing", "Shipwreck", "Pinnacle")
+    )
+  )
+
 
 # ---------- Tidy table (independent of the plot) ----------
 pred_summary <- pred_df %>%
@@ -270,10 +298,6 @@ pred_tidy <- pred_tidy %>%
 
 print(pred_tidy)
 
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(tibble)
 
 # 1) Fix facet order to your table
 species_order_table <- c(
@@ -285,98 +309,119 @@ species_in_plot <- species_order_table[species_order_table %in% unique(pred_df$S
 pred_df <- pred_df %>% mutate(Species = factor(Species, levels = species_in_plot))
 
 # 2) Parsed facet strip labels (unchanged)
+wrap_to_atop_italic <- function(x, width = 24) {
+  w <- str_wrap(x, width = width)
+  parts <- str_split(w, "\n", simplify = TRUE)
+  line1 <- parts[, 1]
+  line2 <- parts[, 2]
+  
+  ifelse(
+    is.na(line2) | line2 == "",
+    paste0("italic('", line1, "')"),
+    paste0("atop(italic('", line1, "'), italic('", line2, "'))")
+  )
+}
+
 species_labels <- spp_lookup %>%
-  mutate(
-    display_name = case_when(
-      sci_name == "Diagramma/ Plectorhinchus spp." ~ "atop('Diagramma/','Plectorhinchus spp.')",
-      sci_name == "Cephalopholis/ Epinephelus spp." ~ "atop('Cephalopholis/','(<30cm) Epinephelus spp.')",
-      sci_name == "Epinephelus (>30cm)/ Plectropomus spp." ~ "atop('Epinephelus (>30cm)/','Plectropomus spp.')",
-      TRUE ~ paste0("'", sci_name, "'")
-    ),
-    label = paste0("italic(", display_name, ")")
-  ) %>%
+  mutate(label = wrap_to_atop_italic(sci_name, width=24)) %>%
   select(Species_clean, label) %>%
-  tibble::deframe()
+  deframe()
+
+force_atop <- function(x) {
+  x %>%
+    # Diagramma/Plectorhinchus spp.
+    str_replace(
+      "italic\\('Diagramma/Plectorhinchus spp\\.'\\)",
+      "atop(italic('Diagramma/'), italic('Plectorhinchus spp.'))"
+    ) %>%
+    # Cephalopholis/Epinephelus spp.
+    str_replace(
+      "italic\\('Cephalopholis/Epinephelus spp\\.'\\)",
+      "atop(italic('Cephalopholis/'), italic('Epinephelus spp.'))"
+    )
+}
+
+species_labels <- spp_lookup %>%
+  mutate(label = wrap_to_atop_italic(sci_name, width = 24)) %>%
+  mutate(label = force_atop(label)) %>%
+  select(Species_clean, label) %>%
+  deframe()
+
 
 # 3) Colors
 buGn3 <- c("#B2E2E2", "#66C2A4", "#238B45")
 
-# 4) Base plot
+buGn3_named <- c(
+  "Fringing"   = "#238B45",
+  "Shipwreck" = "#66C2A4",
+  "Pinnacle"   = "#B2E2E2"
+) 
+# 4) Base plot (Fig 6)
 p_base <- ggplot(pred_df, aes(x = Classification, y = estimate__, fill = Classification)) +
   geom_col(width = 0.7) +
   geom_errorbar(aes(ymin = lower__, ymax = upper__), width = 0.2) +
   facet_wrap(
-    ~ Species, scales = "free_y", ncol = 6,
+    ~ Species,
+    scales = "free_y",
+    ncol = 4,
     labeller = labeller(Species = as_labeller(species_labels, label_parsed))
   ) +
-  scale_fill_manual(values = buGn3) +
+  scale_fill_manual(values = buGn3_named) +
   labs(
     title = "Predicted Abundance per Species by Habitat Type",
-    x = "Habitat Type",
+    x = NULL,
     y = "Predicted Abundance"
   ) +
   theme_clean +
   theme(
-    strip.text = element_text(size = 12, face = "bold", margin = margin(b = 10), lineheight = 1.1),
-    axis.title = element_text(size = 14, face = "bold"),
-    axis.text = element_text(size = 12),
-    axis.text.x = element_text(angle = 30, hjust = 1),
-    legend.position = "none"
+    ## strip labels
+    strip.text = element_text(
+      size = 7.5,
+      face = "bold",
+      lineheight = 0.5,
+      margin = margin(t = 1, b = 1)
+    ),
+    
+    ## spacing between panels
+    panel.spacing = unit(4, "pt"),
+    panel.spacing.y = unit(2, "pt"),
+    
+    ## drop x axis entirely
+    axis.text.x  = element_blank(),
+    axis.ticks.x = element_blank(),
+    
+    ## legend once, underneath
+    legend.position = "bottom",
+    legend.title = element_blank()
   )
 
-# 5) Letters matched to your order
-classification_levels <- levels(factor(pred_df$Classification))
-x_left <- classification_levels[1]
 
-y_pos <- pred_df %>%
-  group_by(Species) %>%
-  summarise(y = max(upper__, na.rm = TRUE) * 1.05, .groups = "drop")
-
-letters_df <- y_pos %>%
-  mutate(
-    Species = factor(Species, levels = species_in_plot),
-    label = letters[seq_along(species_in_plot)][match(Species, species_in_plot)],
-    x = x_left
-  )
-
-# Rightmost x position (number of x levels)
+# 5) Letters matched to your order (top-right of each facet)
 cls_levels <- if (is.factor(pred_df$Classification)) levels(pred_df$Classification) else unique(pred_df$Classification)
 x_right <- length(cls_levels)
 
-# Per-facet y (then nudge down a bit) + letters in your specified order
-y_pos <- pred_df %>%
+letters_df <- pred_df %>%
   group_by(Species) %>%
-  summarise(y = max(upper__, na.rm = TRUE), .groups = "drop")
-
-letters_df <- y_pos %>%
+  summarise(y = max(upper__, na.rm = TRUE), .groups = "drop") %>%
   mutate(
     Species = factor(Species, levels = species_in_plot),
     label   = letters[seq_along(species_in_plot)][match(as.character(Species), species_in_plot)],
-    x = x_right,
-    y = y * 1.3     # move down a little from the top
+    x       = x_right,
+    y       = y * 1.3
   )
 
-# Top-right Times labels
 p_species_prediction <- p_base +
   geom_text(
     data = letters_df,
     aes(x = x, y = y, label = paste0("(", label, ")")),
     inherit.aes = FALSE,
-    family = "Times",   # use "serif" if Times isn't available
+    family = "serif",
     fontface = "bold",
-    size = 4,
-    hjust = 0,          # right-align
-    vjust = 1           # top-align
+    size = 3,
+    hjust = 0,
+    vjust = 1
   )
 
-p_species_prediction <- p_species_prediction +
-  theme(
-    strip.text = element_text(
-      size = 12,
-      face = "bold",
-      margin = margin(t = 2, r = 0, b = 2, l = 0)  # smaller top/bottom margin
-    )
-  )
 
 print(p_species_prediction)  # fig 6
 
@@ -522,42 +567,29 @@ library(tidybayes)
 
 
 save_species_plots <- function(pred_plot, diff_plot, heatmap_plot, output_dir, analysis_date) {
-  ggsave(
-    filename = file.path(output_dir, paste0("FIG6_Species_Predicted_Abundance_", analysis_date, ".png")),
-    plot = pred_plot,
-    width = 13, height = 6, dpi = 300
-  )
   
-  ggsave(
-    filename = file.path(output_dir, paste0("SpeciesLevel_Posterior_Differences_", analysis_date, ".png")),
-    plot = diff_plot,
-    width = 8, height = 6, dpi = 300
-  )
-  
-  ggsave(
-    filename = file.path(output_dir, paste0("FIG7_SpeciesLevel_Heatmap_Effects_", analysis_date, ".png")),
-    plot = heatmap_plot,
-    width = 8, height = 6, dpi = 300
-  )
+  save_ir_fig(pred_plot,       6, output_dir, width_mm = 165, height_mm = 165)
+  # 81 for one column vertical 
+  # or 169 for two col horizontal 
   
   message("✅ All species-level plots saved to: ", output_dir)
 }
 
-# Usage
+# Usage 
 save_species_plots(
   pred_plot = p_species_prediction,
   diff_plot = species_diff_plot,
   heatmap_plot = spp_heatmap,
   output_dir = output_dir,
   analysis_date = analysis_date
-)
+) 
+
 
 print(p_species_prediction) # fig 6 
 print(spp_heatmap) # fig 7 
 print(species_diff_plot)
 
 print(posterior_contrasts_summary, n=Inf)
-
 
 
 

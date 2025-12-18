@@ -112,7 +112,7 @@ prop_draws_plot <- ggplot(prop_draws, aes(x = Zone, y = Proportion, fill = Funct
     x = "Zone"
   ) +
   scale_fill_brewer(palette = "Set2") +
-  theme_clean + theme(text = element_text(size = 16))
+  theme_clean 
 print(prop_draws_plot)
 
 ### raw totals and proportions by zone (from observed counts) ######################################
@@ -127,7 +127,7 @@ proportion_plot_zone <- ggplot(fg_zone, aes(x = Zone, y = Proportion, fill = Fun
   labs(title = "Proportional Composition of Functional Groups by Zone",
        x = "Zone", y = "Proportion of Total Fish Count",
        fill = "Functional \n Group") +
-  theme_clean + theme(text = element_text(size = 16)) +
+  theme_clean  +
   scale_fill_brewer(palette = "BuGn")
 print(proportion_plot_zone)
 
@@ -167,7 +167,7 @@ zone_forest_plot <- ggplot(zone_summary, aes(x = Estimate, y = Functional_Group,
     x = "Posterior Median Estimate (log-scale)",
     y = "Functional Group"
   ) +
-  theme_clean + theme(text = element_text(size = 16))
+  theme_clean 
 print(zone_forest_plot)
 
 ### proportional composition by zone from model predictions #########################################
@@ -195,7 +195,7 @@ pred_abund_prop <- pred_abund %>%
 fg_zone_plot <- ggplot(pred_abund_prop, aes(x = Zone, y = Proportion, fill = Functional_Group)) +
   geom_bar(stat = "identity", position = "stack", color = "white") +
   labs(title = " ", y = "Proportion of Predicted Abundance", x = "Zone", fill = "Functional \n Group") +
-  theme_clean + theme(text = element_text(size = 16)) +
+  theme_clean  +
   scale_fill_brewer(palette = "BuGn")
 print(fg_zone_plot)  # FIGURE 4
 
@@ -240,7 +240,7 @@ zone_diff_plot <- ggplot(zone_diffs, aes(x = value, y = Functional_Group, fill =
     fill = "Comparison"
   ) +
   scale_fill_manual(values = c("Nearshore" = "#188041", "Pelagic" = "#a6dede")) +
-  theme_clean + theme(text = element_text(size = 16))
+  theme_clean 
 print(zone_diff_plot)  # FIGURE 5
 
 ### save zone-level outputs ########################################################################
@@ -249,14 +249,9 @@ save_zone_proportion_outputs <- function(prop_draws_plot, zone_diff_plot, fg_zon
     filename = file.path(output_dir, paste0("Posterior_FunctionalGroup_Proportions_halfeye_", analysis_date, ".png")),
     plot = prop_draws_plot, width = 8, height = 6
   )
-  ggsave(
-    filename = file.path(output_dir, paste0("FIG4_Zonewise_FunctionalGroup_Composition_", analysis_date, ".png")),
-    plot = fg_zone_plot, width = 8, height = 6
-  )
-  ggsave(
-    filename = file.path(output_dir, paste0("FIG5_Zonewise_Posterior_Differences_", analysis_date, ".png")),
-    plot = zone_diff_plot, width = 8, height = 6
-  )
+  save_ir_fig(fg_zone_plot,       4, output_dir, width_mm = 180, height_mm = 120)
+  save_ir_fig(zone_diff_plot, 5, output_dir, width_mm = 180, height_mm = 110)
+ 
   message("✅ Zone-level plots saved to: ", output_dir)
 }
 
