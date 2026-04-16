@@ -5,6 +5,9 @@
 
 This repository contains data and analysis for the Pelagic Pinnacle Project, which investigates fish assemblages on shipwrecks in the Gulf of Thailand, compared to fringing reefs and pelagic pinnacles.
 
+Find the published paper here: [Taylor et al. (2026) MEPS](https://doi.org/10.3354/meps15062) 
+
+
 Overview
 --------
 
